@@ -1,9 +1,21 @@
 #![allow(non_snake_case)]
 use concrete::*;
+use std::env;
 
 fn main() -> Result<(), CryptoAPIError> {
 
-    let path = "keys";
+    let path = "keys/80_1024_1";
+    let mut base_log: usize = 5;
+    let mut level: usize = 3; 
+    let args: Vec<String> = env::args().collect();
+    if args.len() == 3 {
+        base_log =  args[1].parse().unwrap();
+        level = args[2].parse().unwrap();
+    }
+    println!("base_log {}", base_log);
+    println!("level {}", level);    
+    let path = format!("{}_{}_{}",path,base_log,level);
+    println!("key path {}", path);    
     
     println!("loading LWE sk 0... \n");
     let sk0_LWE_path = format!("{}/sk0_LWE.json",path);
@@ -49,13 +61,16 @@ fn main() -> Result<(), CryptoAPIError> {
     let bsk00_path = format!("{}/bsk00_LWE.json",path);
     let bsk00 = LWEBSK::load(&bsk00_path);
     
-    // m_{t+1} = phi*x_{t+1} + (1-phi)*m_t 
+    // m_{t+1} = phi*m_t + (1-phi)*x_{t+1} 
 
-    let term2 = x0.bootstrap_nth_with_function(&bsk00, |x| (1.-phi) * x, &enc,0)?;
-    term2.pp();
     let term1 = m0.bootstrap_nth_with_function(&bsk00, |x| phi * x, &enc,0)?;
+    println!("term1* {:?}", term1.decrypt_decode(&sk0).unwrap());
     term1.pp();
 
+    let term2 = x0.bootstrap_nth_with_function(&bsk00, |x| (1.-phi) * x, &enc,0)?;
+    println!("term2* {:?}", term2.decrypt_decode(&sk0).unwrap());
+    term2.pp();
+    
     let m1 = term1.add_with_padding(&term2)?;
     println!("ewma* {:?}", m1.decrypt_decode(&sk0).unwrap());
     m1.pp();   

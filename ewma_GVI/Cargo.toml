@@ -7,6 +7,8 @@ edition = "2018"
 
 [dependencies]
 concrete = "0.1.9"
+concrete-npe = "*"
+concrete-commons = "*"
 ndarray = "*"
 ndarray-csv = "*"
 csv = "*"
