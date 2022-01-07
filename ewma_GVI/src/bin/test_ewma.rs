@@ -5,8 +5,8 @@ use std::env;
 fn main() -> Result<(), CryptoAPIError> {
 
     let path = "keys/80_1024_1";
-    let mut base_log: usize = 5;
-    let mut level: usize = 3; 
+    let mut base_log: usize = 6;
+    let mut level: usize = 4; 
     let args: Vec<String> = env::args().collect();
     if args.len() == 3 {
         base_log =  args[1].parse().unwrap();
@@ -39,12 +39,12 @@ fn main() -> Result<(), CryptoAPIError> {
     */
 
     // create an encoder
-    let enc = Encoder::new(0., 8., 3, 2)?;
+    let enc = Encoder::new(0., 200., 3, 2)?;
         
-    let m: Vec<f64> = vec![6.0]; // initial value for moving average process
+    let m: Vec<f64> = vec![160.0]; // initial value for moving average process
     println!("ewma at t=0 {:?}\n", m);
     
-    let x: Vec<f64> = vec![4.0]; // initial value for data generating process
+    let x: Vec<f64> = vec![140.0]; // initial value for data generating process
     println!("data at t=1 {:?}\n", x);
 
     let m0 = VectorLWE::encode_encrypt(&sk0, &m, &enc)?;  
@@ -55,7 +55,7 @@ fn main() -> Result<(), CryptoAPIError> {
     println!("data* {:?}",x0.decrypt_decode(&sk0).unwrap());
     x0.pp();    
     
-    let phi = 0.5; // this is "discount" factor
+    let phi = 0.9; // this is "discount" factor
     
     println!("loading BSK 00... \n");
     let bsk00_path = format!("{}/bsk00_LWE.json",path);
@@ -74,6 +74,8 @@ fn main() -> Result<(), CryptoAPIError> {
     let m1 = term1.add_with_padding(&term2)?;
     println!("ewma* {:?}", m1.decrypt_decode(&sk0).unwrap());
     m1.pp();   
+    
+    println!("ewma: {}", phi*&m[0]+(1.-phi)*&x[0]);
     
     Ok(())
 }
