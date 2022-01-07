@@ -4,29 +4,27 @@ use std::env;
 
 pub struct ConcreteContext {
     enc_full: Encoder,
-    enc_half: Encoder,
-    enc_2by3: Encoder,
     bsk: LWEBSK,
     sk: LWESecretKey
 }
 
 impl ConcreteContext {
-    pub fn mean_of_pair(&mut self, x1: &VectorLWE, x2: &VectorLWE) -> VectorLWE {
-        let term1 = (*x1).bootstrap_nth_with_function(&self.bsk, |x| 0.5 * x, &self.enc_half, 0).unwrap();
-        let term2 = (*x2).bootstrap_nth_with_function(&self.bsk, |x| 0.5 * x, &self.enc_half, 0).unwrap();
+     
+    pub fn mean_of_pair(&mut self, x1: &VectorLWE, x2: &VectorLWE, phi: f64) -> VectorLWE {
+        // assert phi is in range [0.0,1.0] 
+        let scale: f64 = if phi > 0.5 {phi} else {1.-phi}; 
+        let min = scale*self.enc_full.o;
+        let max = scale*(self.enc_full.o + self.enc_full.delta);
+        let enc_part = Encoder::new(min, max, 
+                            self.enc_full.nb_bit_precision, self.enc_full.nb_bit_padding).unwrap();
+        let term1 = (*x1).bootstrap_nth_with_function(&self.bsk, |x| 0.5 * x, &enc_part, 0).unwrap();
+        let term2 = (*x2).bootstrap_nth_with_function(&self.bsk, |x| 0.5 * x, &enc_part, 0).unwrap();
         let res = term1.add_with_padding(&term2).unwrap();
         return res;
     }  
-
-    pub fn wavg_of_pair(&mut self, x1: &VectorLWE, x2: &VectorLWE, phi: f64) -> VectorLWE {
-        // assert phi is in range [1/3,2/3] 
-        let term1 = (*x1).bootstrap_nth_with_function(&self.bsk, |x| phi * x, &self.enc_2by3, 0).unwrap();
-        let term2 = (*x2).bootstrap_nth_with_function(&self.bsk, |x| (1.-phi) * x, &self.enc_2by3, 0).unwrap();
-        let res = term1.add_with_padding(&term2).unwrap();
-        return res;
-    }    
     
     pub fn mean_recursion(&mut self, x: &[VectorLWE]) -> VectorLWE{
+        // assert n>0
         let n = x.len();
         let m = n/2;
         if n == 1 {
@@ -35,30 +33,15 @@ impl ConcreteContext {
         }
         let x_i = self.mean_recursion(&x[..m]);
         let x_j = self.mean_recursion(&x[m..]);
-        if 2*m == n {
-            println!("n, m: {}, {}", n, m);
-            return self.mean_of_pair(&x_i, &x_j);
-        }
-        else {
-            let phi: f64 = (m as f64)/(n as f64);
-            println!("n, m, phi: {}, {}, {}", n, m, phi);
-            return self.wavg_of_pair(&x_i, &x_j, phi);
-        }
+        let phi: f64 = (m as f64)/(n as f64);
+        println!("n, m, phi: {}, {}, {}", n, m, phi);
+        return self.mean_of_pair(&x_i, &x_j, phi);
     }
     
     pub fn mean_of_many(&mut self, x: &[VectorLWE]) -> VectorLWE{
-        let n = x.len();
-        let m = n/2;
-        if n == 1 {
-            return x[0].clone();
-        }
-        let mut res = self.mean_recursion(&x);
-        if 2*m != n { // in case encoding is not back at full
-            res = res.bootstrap_nth_with_function(&self.bsk, |x| x, &self.enc_full, 0).unwrap(); 
-        }
-        return res;           
+        let res = self.mean_recursion(&x);
+        return res.bootstrap_nth_with_function(&self.bsk, |x| x, &self.enc_full, 0).unwrap();           
     }
-    
 }
 
 
@@ -85,8 +68,6 @@ fn main() -> Result<(), CryptoAPIError> {
 
     let mut context = ConcreteContext{
         enc_full: Encoder::new(0., 200., 3, 2).unwrap(),
-        enc_half: Encoder::new(0., 100., 3, 2).unwrap(),
-        enc_2by3: Encoder::new(0., 135., 3, 2).unwrap(),
         bsk: LWEBSK::load(&bsk00_path),
         sk: LWESecretKey::load(&sk0_LWE_path).unwrap()    
     };    
@@ -107,7 +88,7 @@ fn main() -> Result<(), CryptoAPIError> {
     println!("x2* {:?}",c2.decrypt_decode(&context.sk).unwrap());
     c2.pp();  
         
-    let c3 = context.mean_of_pair(&c1, &c2);
+    let c3 = context.mean_of_pair(&c1, &c2, 0.5);
     println!("res* {:?}", c3.decrypt_decode(&context.sk).unwrap());
     c3.pp();   
     
