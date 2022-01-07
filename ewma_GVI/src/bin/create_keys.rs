@@ -22,12 +22,12 @@ fn main() -> Result<(), CryptoAPIError> {
     //let rlwe_params0 = RLWE128_1024_1;
     //let path = "keys/128_1024_1";
 
-    let rlwe_params0 = RLWE80_1024_1;
-    let path = "keys/80_1024_1";
+    //let rlwe_params0 = RLWE80_1024_1;
+    //let path = "keys/80_1024_1";
     
     //let rlwe_params0 = RLWE80_2048_1; // dont use
-    //let rlwe_params0: RLWEParams = RLWEParams{polynomial_size: 2048, dimension: 1, log2_std_dev: -60};
-    //let path = "keys/std60_2048_1";
+    let rlwe_params0: RLWEParams = RLWEParams{polynomial_size: 2048, dimension: 1, log2_std_dev: -62};
+    let path = "keys/std62_2048_1";
 
     let mut base_log: usize = 5;
     let mut level: usize = 3; 
