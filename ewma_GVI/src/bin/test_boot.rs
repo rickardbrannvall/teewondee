@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 use concrete::*;
 use std::env;
+use std::time::{Instant}; // Duration, 
 
 use concrete_npe as npe;
 use concrete_commons::numeric::Numeric;
@@ -34,7 +35,9 @@ fn main() -> Result<(), CryptoAPIError> {
     
     println!("loading LWE sk 0... \n");
     let sk0_LWE_path = format!("{}/sk0_LWE.json",path);
-    let sk0 = LWESecretKey::load(&sk0_LWE_path).unwrap();    
+    let now = Instant::now();
+    let sk0 = LWESecretKey::load(&sk0_LWE_path).unwrap(); 
+    let sk_load_time = now.elapsed().as_millis();
         
     // create an encoder
     let enc = Encoder::new(0., 8., 3, 2)?;
@@ -57,16 +60,21 @@ fn main() -> Result<(), CryptoAPIError> {
 
     println!("loading BSK 00... \n");
     let bsk00_path = format!("{}/bsk00_LWE.json",path);
+    let now = Instant::now();
     let bsk00 = LWEBSK::load(&bsk00_path);
+    let bsk_load_time = now.elapsed().as_millis();
     
+    let now = Instant::now();
     let x1 = x0.bootstrap_nth_with_function(&bsk00, |x| x, &enc,0).unwrap();
+    let bootstrap_time = now.elapsed().as_millis();
     
     let rs = x1.decrypt_decode(&sk0);
     let rs = match rs {
         Ok(data) => data,
         Err(_error) => {
-            println!("{} NA", path);
-            writeln!(file, "{} NA", path).unwrap();
+            let msg = format!("{} NA {} {} {}", path, sk_load_time, bsk_load_time, bootstrap_time);
+            println!("{}", msg);
+            writeln!(file, "{}", msg).unwrap();
             return Ok(())
         }
     };    
@@ -83,8 +91,9 @@ fn main() -> Result<(), CryptoAPIError> {
     let s1 = <Torus as Numeric>::BITS - n1;
     println!("s1 {:?}", s1); 
     
-    println!("{} {}", path, s1);
-    writeln!(file, "{} {}", path, s1).unwrap();
-        
+    let msg = format!("{} {} {} {} {}", path, s1, sk_load_time, bsk_load_time, bootstrap_time);
+    println!("{}", msg);
+    writeln!(file, "{}", msg).unwrap();    
+    
     Ok(())
 }
