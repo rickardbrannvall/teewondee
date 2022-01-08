@@ -105,8 +105,7 @@ fn in_range(x: f64, upper: f64, lower: f64) -> f64{
 }
 
 fn calc_l(x: f64) -> f64{
-    //f64::sqrt(x*x + 25.)
-    f64::min(f64::sqrt(x.powf(2.0) + 25.), 9.)
+    f64::min(f64::sqrt(x.powf(2.0) + 25.), 32.)
 }
 
 fn F_GVP(x: f64) -> f64{
@@ -156,12 +155,12 @@ fn glycemic_variability_precentage(x: &VectorLWE, keys: (&LWESecretKey, &LWESecr
         diff.copy_in_nth_nth_inplace(i+1, &ct_1, 0).unwrap();
     }
     
-    let enc = Encoder::new(5., 9., precision, 1).unwrap();//((n_u as f64).log2() as usize)+1).unwrap();
+    let enc = Encoder::new(4.9, 32.4, precision, ((n_u as f64).log2() as usize)+1).unwrap();
     
     let pb = ProgressBar::new(n_u as u64);
     for i in 0..n_u{
-        //let bts = diff.bootstrap_nth_with_function(&bsk01, |x| calc_l(x), &enc, i).unwrap();
-        let bts = diff.bootstrap_nth_with_function(&bsk01, |x| f64::min(f64::abs(x) + 5., 9.), &enc, i).unwrap();
+        let bts = diff.bootstrap_nth_with_function(&bsk01, |x| calc_l(x), &enc, i).unwrap();
+        //let bts = diff.bootstrap_nth_with_function(&bsk01, |x| f64::min(f64::abs(x)/10., 9.), &enc, i).unwrap();
         L.copy_in_nth_nth_inplace(i, &bts, 0).unwrap();
         pb.inc(1);
         thread::sleep(Duration::from_millis(5));
@@ -170,7 +169,7 @@ fn glycemic_variability_precentage(x: &VectorLWE, keys: (&LWESecretKey, &LWESecr
     pb.finish_with_message("Done Calulationg L's");
     //println!("{}, {:?}, {}, {}", L.nb_ciphertexts, L.encoders[0].delta, L.encoders[0].get_min(), L.encoders[0].get_granularity());
     
-    println!("{:.2?}", L.decrypt_decode(&sk1).unwrap());
+    //println!("{:.2?}", L.decrypt_decode(&sk1).unwrap());
 
     L = sum_N(&L);
     let L = L.keyswitch(&ksk10).unwrap();
@@ -194,7 +193,7 @@ fn mean_glucose(x: &VectorLWE, keys:(&LWESecretKey, &LWESecretKey, &LWEBSK, &LWE
     let mut mean = sum_N(x);
     let mg = mean.bootstrap_nth_with_function(&bsk01, |x| F_MG(x/n), &enc, 0).unwrap();
     //println!("{}", mg.decrypt_decode(&sk0).unwrap()[0]/n);    
-    println!("F_MG({}) = {}", mean.decrypt_decode(&sk0).unwrap()[0]/n, F_MG(mean.decrypt_decode(&sk0).unwrap()[0]/n) );
+    //println!("F_MG({}) = {}", mean.decrypt_decode(&sk0).unwrap()[0]/n, F_MG(mean.decrypt_decode(&sk0).unwrap()[0]/n) );
     return mg;
 }
 
@@ -283,7 +282,7 @@ fn hypo_54(x: &VectorLWE, keys:(&LWESecretKey, &LWESecretKey, &LWEBSK, &LWEKSK),
     let enc = Encoder::new(0., 5., precision, 4).unwrap();
     let hypo54 = hypo.bootstrap_nth_with_function(&bsk01, |x| F_H54(x/n), &enc, 0).unwrap();
     //println!("{:?}", hypo54.decrypt_decode(&sk1).unwrap());
-    println!("F_H54({}) = {}", hypo.decrypt_decode(&sk0).unwrap()[0]/n, F_H70(hypo.decrypt_decode(&sk0).unwrap()[0]/n));
+    //println!("F_H54({}) = {}", hypo.decrypt_decode(&sk0).unwrap()[0]/n, F_H70(hypo.decrypt_decode(&sk0).unwrap()[0]/n));
     return hypo54;
 }
 

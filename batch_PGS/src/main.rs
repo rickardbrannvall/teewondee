@@ -7,15 +7,15 @@ use lib::*;
 
 
 fn main() {
-    let lwe_dim = 1024; //512, 1024, 2048];
-    let lwe_noise = -40; //-19, -40, -62];
+    let lwe_dim = 750;//512, 1024, 2048];
+    let lwe_noise = -29;//-19, -40, -62];
     
     let rlwe_dim = 4096; //512, 1024, 2048];
     let rlwe_noise = -62; //-19, -40, -62];
     
     
     let base_log = 4;
-    let lvl = 8;
+    let lvl = 9;
     
     let lwe_params: LWEParams = LWEParams::new(lwe_dim, lwe_noise);
     let rlwe_params: RLWEParams = RLWEParams{polynomial_size: rlwe_dim, dimension: 1, log2_std_dev: rlwe_noise};
@@ -24,19 +24,21 @@ fn main() {
     let (sk0, sk1, bsk01, ksk10) = keys(&lwe_params, &rlwe_params, base_log, lvl, false);
     let all_keys = (&sk0, &sk1, &bsk01, &ksk10);//, &bsk00);
     
-    let n: usize = 5;
+    let n: usize = 12;
     let N = u32::pow(2, n as u32) as usize;
     
     let data = load_data("../data/first_two_weeks.csv", N);
     //let data = vec![90., 100., 120., 110.];
     
-    let enc_gvp = Encoder::new(0., 400., 10, 2).unwrap();
-    let enc_mean = Encoder::new(0., 400., 10, n+1).unwrap();
-    let enc_ptir = Encoder::new(0., 400., 10, 1).unwrap();
+    let enc_gvp = Encoder::new(0., 400., 11, 2).unwrap();
+    let enc_mean = Encoder::new(0., 400., 11, n+1).unwrap();
+    let enc_ptir = Encoder::new(0., 400., 11, 1).unwrap();
     
+    // Vad om man får dGlucose som data också?
     let enc_data_gvp = VectorLWE::encode_encrypt(&sk0, &data, &enc_gvp).unwrap();
     let enc_data_mean = VectorLWE::encode_encrypt(&sk0, &data, &enc_mean).unwrap();
     let enc_data_ptir = VectorLWE::encode_encrypt(&sk0, &data, &enc_ptir).unwrap();
+        
     
     println!("Data loaded and encrypted!");
     
