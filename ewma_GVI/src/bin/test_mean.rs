@@ -120,13 +120,31 @@ fn main() -> Result<(), CryptoAPIError> {
     println!("cv[0]* {:?}", cv[0].decrypt_decode(&context.sk).unwrap());
     cv[0].pp(); 
 
-    let fun_IR = |x| if (x >= 70.) && (x <= 180.) {100.0} else {0.0};
+    let enc100 = Encoder::new(0., 100., 3, 2).unwrap();
+    let enc10 = Encoder::new(0., 10., 3, 2).unwrap();
+    let enc5 = Encoder::new(0., 5., 3, 2).unwrap();
+        
+    let score_IR = |x| if (x >= 70.) && (x <= 180.) {100.0} else {0.0};
     let ir = (0..n).map(
-                        |i| cv[i].bootstrap_nth_with_function(&context.bsk, fun_IR, &enc, 0).unwrap()
+                        |i| cv[i].bootstrap_nth_with_function(&context.bsk, score_IR, &enc100, 0).unwrap()
                     ).collect::<Vec<_>>();
     println!("ir[0]* {:?}", ir[0].decrypt_decode(&context.sk).unwrap());
     ir[0].pp(); 
-        
+
+    let score_70 = |x| if x < 70. {100.0} else {0.0};
+    let h70 = (0..n).map(
+                        |i| cv[i].bootstrap_nth_with_function(&context.bsk, score_70, &enc100, 0).unwrap()
+                    ).collect::<Vec<_>>();
+    println!("h70[0]* {:?}", h70[0].decrypt_decode(&context.sk).unwrap());
+    h70[0].pp(); 
+    
+    let score_54 = |x| if x < 54. {100.0} else {0.0};
+    let h54 = (0..n).map(
+                        |i| cv[i].bootstrap_nth_with_function(&context.bsk, score_54, &enc100, 0).unwrap()
+                    ).collect::<Vec<_>>();
+    println!("h54[0]* {:?}", h54[0].decrypt_decode(&context.sk).unwrap());
+    h54[0].pp(); 
+    
     //let avg = context.mean_of_many(&cv, &enc);
     let avg = context.mean_of_many(&ir, &enc);
     println!("avg* {:?}", avg.decrypt_decode(&context.sk).unwrap());
