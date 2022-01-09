@@ -11,7 +11,8 @@ use std::io::prelude::*;
 
 fn main() -> Result<(), CryptoAPIError> {
 
-    let path = "keys/80_1024_1";
+    //let path = "keys/80_1024_1";
+    let path = "keys/std62_2048_1";
     let mut base_log: usize = 5;
     let mut level: usize = 3; 
     let args: Vec<String> = env::args().collect();
