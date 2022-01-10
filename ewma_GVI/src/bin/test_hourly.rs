@@ -7,40 +7,60 @@ pub struct ConcreteContext {
     sk: LWESecretKey
 }
 
+fn id(x: f64) -> f64 { x }
+
 impl ConcreteContext {
-     
-    pub fn mean_of_pair(&mut self, x1: &VectorLWE, x2: &VectorLWE, phi: f64, enc: &Encoder) -> VectorLWE {
-        // assert phi is in range [0.0,1.0] 
+    
+    // this implementation can calculate mean of uneven sized sample (i.e n != 2^k)
+    // albeit requires bootstrap at every addition for a total of 2n-1
+    // on the other hand it can run a function at leaf nodes e.g. to calculate score
+    // which is included in above execution time cost estimate
+    // it has no support for rolling averages as it is inteded for hourly T1D scores
+
+    pub fn weighted_mean_of_pair(&mut self, x1: &VectorLWE, x2: &VectorLWE, phi: f64, enc: &Encoder, 
+            f1: fn(f64) -> f64, f2: fn(f64) -> f64) -> VectorLWE {
+        // phi is weight of x1
+        // enc is target encoder
+        // f1 and f2 are functions to evaluate on x1 and x2 (set to id for mean of data)
+        assert!(phi > 0.0);
+        assert!(phi < 1.0); 
         let scale: f64 = if phi > 0.5 {phi} else {1.-phi}; 
         let min = scale*enc.o;
         let max = scale*(enc.o + enc.delta);
         let enc_part = Encoder::new(min, max, enc.nb_bit_precision, enc.nb_bit_padding).unwrap();
-        let term1 = (*x1).bootstrap_nth_with_function(&self.bsk, |x| 0.5 * x, &enc_part, 0).unwrap();
-        let term2 = (*x2).bootstrap_nth_with_function(&self.bsk, |x| 0.5 * x, &enc_part, 0).unwrap();
+        let term1 = (*x1).bootstrap_nth_with_function(&self.bsk, |x| phi * f1(x), &enc_part, 0).unwrap();
+        let term2 = (*x2).bootstrap_nth_with_function(&self.bsk, |x| (1.-phi) * f2(x), &enc_part, 0).unwrap();
         let res = term1.add_with_padding(&term2).unwrap();
         return res;
-    }  
-    
-    pub fn mean_recursion(&mut self, x: &[VectorLWE], enc: &Encoder) -> VectorLWE{
-        // assert n>0
+    }       
+        
+    pub fn weighted_mean_recursion(&mut self, x: &[VectorLWE], enc: &Encoder, 
+            f: fn(f64) -> f64) -> (fn(f64) -> f64, VectorLWE) {
+        // x is vector of data
+        // enc is target encoder
+        // f is function to evaluate on leaf node (set to id for mean of data)
         let n = x.len();
+        assert!(n>0);
         let m = n/2;
         if n == 1 {
             println!("n, m: {}, {}", n, m);
-            return x[0].clone();
+            return (f, x[0].clone());
         }
-        let x_i = self.mean_recursion(&x[..m], &enc);
-        let x_j = self.mean_recursion(&x[m..], &enc);
+        let (f_i, x_i) = self.weighted_mean_recursion(&x[..m], &enc, f);
+        let (f_j, x_j) = self.weighted_mean_recursion(&x[m..], &enc, f);
         let phi: f64 = (m as f64)/(n as f64);
         println!("n, m, phi: {}, {}, {}", n, m, phi);
-        return self.mean_of_pair(&x_i, &x_j, phi, &enc);
+        return (id, self.weighted_mean_of_pair(&x_i, &x_j, phi, &enc, f_i, f_j));
     }
     
-    pub fn mean_of_many(&mut self, x: &[VectorLWE], enc: &Encoder) -> VectorLWE{
-        let res = self.mean_recursion(&x, &enc);
+    pub fn weighted_mean_of_many(&mut self, x: &[VectorLWE], enc: &Encoder, f: fn(f64) -> f64) -> VectorLWE{
+        // x is vector of data
+        // enc is target encoder
+        // f is function to evaluate on leaf node (set to id for mean of data)
+         let (_f, res) = self.weighted_mean_recursion(&x, &enc, f);
         return res.bootstrap_nth_with_function(&self.bsk, |x| x, &enc, 0).unwrap();           
     }
-    
+        
     pub fn bootmap(&mut self, v: &[VectorLWE], f: &dyn Fn(f64) -> f64, enc: &Encoder) -> Vec<VectorLWE> {
         let n = v.len();
         (0..n).map(|i| v[i].bootstrap_nth_with_function(&self.bsk,f,&enc,0).unwrap()).collect::<Vec<_>>()
@@ -52,6 +72,10 @@ impl ConcreteContext {
     }
 }
 
+fn score_IR(x: f64) -> f64 { if (x >= 70.) && (x <= 180.) {100.0} else {0.0} }
+//fn score_70(x: f64) -> f64 { if x < 70. {100.0} else {0.0} }
+//fn score_54(x: f64) -> f64 { if x < 54. {100.0} else {0.0} }
+//fn score_GVP(dy: f64) -> f64 {(1.0 + (dy/5.0).powi(2)).sqrt() - 1.0}
 
 fn main() -> Result<(), CryptoAPIError> {
 
@@ -85,48 +109,53 @@ fn main() -> Result<(), CryptoAPIError> {
     };    
 
     /*
-    2021-01-01 12:18:40,189.0
-    2021-01-01 12:23:39,195.0
-    2021-01-01 12:28:40,193.0
-    2021-01-01 12:33:39,199.0
-    2021-01-01 12:38:39,193.0
-    2021-01-01 12:43:39,195.0
-    2021-01-01 12:48:39,198.0
-    2021-01-01 12:53:39,202.0
-    2021-01-01 12:58:39,195.0
     2021-01-01 13:03:39,191.0
+    2021-01-01 13:08:39,186.0
+    2021-01-01 13:13:39,184.0
+    2021-01-01 13:18:39,183.0
+    2021-01-01 13:23:39,179.0
+    2021-01-01 13:28:39,177.0
+    2021-01-01 13:33:39,167.0
+    2021-01-01 13:38:39,163.0
+    2021-01-01 13:43:39,156.0
+    2021-01-01 13:48:39,153.0
+    2021-01-01 13:53:39,150.0
+    2021-01-01 13:58:39,157.0
     */
+    // time in range 8/12 approx 67%
 
     // test mean_of_many
     
-    let xv: Vec<f64> = vec![179.0,175.0,183.0,189.0,183.0,185.0,188.0,182.0,175.0,171.0];
+    let xv: Vec<f64> = vec![191.,186.,184.,183.,179.,177.,167.,163.,156.,153.,150.,157.];
 
     let cv = context.encrypt(&xv, &encCGM);
     println!("cv[0]* {:?}", cv[0].decrypt_decode(&context.sk).unwrap());
     cv[0].pp(); 
         
-    fn score_IR(x: f64) -> f64 { if (x >= 70.) && (x <= 180.) {100.0} else {0.0} }
+    /*
     let ir = context.bootmap(&cv, &score_IR, &enc100);
     println!("ir[0]* {:?}", ir[0].decrypt_decode(&context.sk).unwrap());
     ir[0].pp(); 
 
-    fn score_70(x: f64) -> f64 { if x < 70. {100.0} else {0.0} }
     let h70 = context.bootmap(&cv, &score_70, &enc100);
     println!("h70[0]* {:?}", h70[0].decrypt_decode(&context.sk).unwrap());
     h70[0].pp(); 
 
-    fn score_54(x: f64) -> f64 { if x < 54. {100.0} else {0.0} }
     let h54 = context.bootmap(&cv, &score_54, &enc100);
     println!("h54[0]* {:?}", h54[0].decrypt_decode(&context.sk).unwrap());
     h54[0].pp(); 
+    */
     
-    //let avg = context.mean_of_many(&cv, &encCGM);
-    let avg = context.mean_of_many(&ir, &enc100);
-    println!("avg* {:?}", avg.decrypt_decode(&context.sk).unwrap());
+    let avg = context.weighted_mean_of_many(&cv, &encCGM, id);
+    println!("mean hourly CGM* {:?}", avg.decrypt_decode(&context.sk).unwrap());
     avg.pp(); 
     
     let tst = xv.iter().sum::<f64>() / xv.len() as f64;
-    println!("tst: {}",tst);
+    println!("check value: {}",tst);
 
+    let avg = context.weighted_mean_of_many(&cv, &enc100, score_IR);
+    println!("mean hourly TIR* {:?}", avg.decrypt_decode(&context.sk).unwrap());
+    avg.pp(); 
+    
     Ok(())
 }

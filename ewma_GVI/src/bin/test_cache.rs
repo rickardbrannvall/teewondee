@@ -12,6 +12,13 @@ pub struct AveragingContext {
 
 impl AveragingContext {
 
+    // this implementation tests calculating rolling averages for window size is N=2^k 
+    // it exploites the strcture of the binary tree by chaching intermediate results
+    // padding LWE ciphertexts is simulated by introducing an artificial padding parameter
+    // a simulated bootstrap is only carried out when remaining padding reaches 1
+    // bootstrap is optional at top level (as it may be effecient to defer)
+    // it is intended to test the structure used to caclute rolling ten day T1D scores
+    
     pub fn partial_mean_recursion(&mut self, iv: &[usize], p: i32, l: i32) -> (f64, i32, f64) {
         // iv is list of indices for which to find average
         // p: is padding parameter which controls how often to rescale
