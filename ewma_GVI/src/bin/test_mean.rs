@@ -10,19 +10,19 @@ pub struct ConcreteContext {
 
 impl ConcreteContext {
      
-    pub fn mean_of_pair(&mut self, x1: &VectorLWE, x2: &VectorLWE, phi: f64, enc: &Encoder) -> VectorLWE {
+    pub fn weighted_mean_of_pair(&mut self, x1: &VectorLWE, x2: &VectorLWE, phi: f64, enc: &Encoder) -> VectorLWE {
         // assert phi is in range [0.0,1.0] 
         let scale: f64 = if phi > 0.5 {phi} else {1.-phi}; 
         let min = scale*enc.o;
         let max = scale*(enc.o + enc.delta);
         let enc_part = Encoder::new(min, max, enc.nb_bit_precision, enc.nb_bit_padding).unwrap();
-        let term1 = (*x1).bootstrap_nth_with_function(&self.bsk, |x| 0.5 * x, &enc_part, 0).unwrap();
-        let term2 = (*x2).bootstrap_nth_with_function(&self.bsk, |x| 0.5 * x, &enc_part, 0).unwrap();
+        let term1 = (*x1).bootstrap_nth_with_function(&self.bsk, |x| phi * x, &enc_part, 0).unwrap();
+        let term2 = (*x2).bootstrap_nth_with_function(&self.bsk, |x| (1.-phi) * x, &enc_part, 0).unwrap();
         let res = term1.add_with_padding(&term2).unwrap();
         return res;
-    }  
+    }       
     
-    pub fn mean_recursion(&mut self, x: &[VectorLWE], enc: &Encoder) -> VectorLWE{
+    pub fn weighted_mean_recursion(&mut self, x: &[VectorLWE], enc: &Encoder) -> VectorLWE{
         // assert n>0
         let n = x.len();
         let m = n/2;
@@ -30,15 +30,15 @@ impl ConcreteContext {
             println!("n, m: {}, {}", n, m);
             return x[0].clone();
         }
-        let x_i = self.mean_recursion(&x[..m], &enc);
-        let x_j = self.mean_recursion(&x[m..], &enc);
+        let x_i = self.weighted_mean_recursion(&x[..m], &enc);
+        let x_j = self.weighted_mean_recursion(&x[m..], &enc);
         let phi: f64 = (m as f64)/(n as f64);
         println!("n, m, phi: {}, {}, {}", n, m, phi);
-        return self.mean_of_pair(&x_i, &x_j, phi, &enc);
+        return self.weighted_mean_of_pair(&x_i, &x_j, phi, &enc);
     }
     
-    pub fn mean_of_many(&mut self, x: &[VectorLWE], enc: &Encoder) -> VectorLWE{
-        let res = self.mean_recursion(&x, &enc);
+    pub fn weighted_mean_of_many(&mut self, x: &[VectorLWE], enc: &Encoder) -> VectorLWE{
+        let res = self.weighted_mean_recursion(&x, &enc);
         return res.bootstrap_nth_with_function(&self.bsk, |x| x, &enc, 0).unwrap();           
     }
 }
@@ -89,7 +89,7 @@ fn main() -> Result<(), CryptoAPIError> {
     println!("x2* {:?}",c2.decrypt_decode(&context.sk).unwrap());
     c2.pp();  
         
-    let c3 = context.mean_of_pair(&c1, &c2, 0.5, &enc);
+    let c3 = context.weighted_mean_of_pair(&c1, &c2, 0.5, &enc);
     println!("res* {:?}", c3.decrypt_decode(&context.sk).unwrap());
     c3.pp();   
     
@@ -107,7 +107,7 @@ fn main() -> Result<(), CryptoAPIError> {
     println!("cv[0]* {:?}", cv[0].decrypt_decode(&context.sk).unwrap());
     cv[0].pp(); 
     
-    let avg = context.mean_of_many(&cv, &enc);
+    let avg = context.weighted_mean_of_many(&cv, &enc);
     println!("avg* {:?}", avg.decrypt_decode(&context.sk).unwrap());
     avg.pp(); 
     
