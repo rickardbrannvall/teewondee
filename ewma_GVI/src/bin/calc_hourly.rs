@@ -1,6 +1,11 @@
 #![allow(non_snake_case)]
 use concrete::*;
+
 use std::env;
+use std::time::{Instant}; // Duration, 
+use std::fs::OpenOptions;
+use std::io::prelude::*;
+
 
 pub struct ConcreteContext {
     bsk: LWEBSK,
@@ -43,13 +48,13 @@ impl ConcreteContext {
         assert!(n>0);
         let m = n/2;
         if n == 1 {
-            println!("n, m: {}, {}", n, m);
+            //println!("n, m: {}, {}", n, m);
             return (f, x[0].clone());
         }
         let (f_i, x_i) = self.weighted_mean_recursion(&x[..m], &enc, f);
         let (f_j, x_j) = self.weighted_mean_recursion(&x[m..], &enc, f);
         let phi: f64 = (m as f64)/(n as f64);
-        println!("n, m, phi: {}, {}, {}", n, m, phi);
+        //println!("n, m, phi: {}, {}, {}", n, m, phi);
         return (id, self.weighted_mean_of_pair(&x_i, &x_j, phi, &enc, f_i, f_j));
     }
     
@@ -72,63 +77,108 @@ impl ConcreteContext {
     }
 }
 
+
+/*
 fn score_GVP(dy: f64) -> f64 {
     let ceil = 2.;
     let gvp = (1.0 + (dy/5.0).powi(2)).sqrt() - 1.0;
     let res = if gvp < ceil {gvp} else {ceil};
     return 100.*res;
 }
-fn score_IR(x: f64) -> f64 { if (x >= 70.) && (x <= 180.) {100.0} else {0.0} }
+*/
+//fn score_IR(x: f64) -> f64 { if (x >= 70.) && (x <= 180.) {100.0} else {0.0} }
 //fn score_70(x: f64) -> f64 { if x < 70. {100.0} else {0.0} }
 //fn score_54(x: f64) -> f64 { if x < 54. {100.0} else {0.0} }
 
 fn main() -> Result<(), CryptoAPIError> {
 
+    let data_path = "data/CGM_p77_24h";
     let path = "keys/80_1024_1";
     let mut base_log: usize = 6;
     let mut level: usize = 4; 
+    
+    println!("\nsetting parameters ..."); 
     let args: Vec<String> = env::args().collect();
     if args.len() == 3 {
         base_log =  args[1].parse().unwrap();
         level = args[2].parse().unwrap();
     }
     println!("base_log {}", base_log);
-    println!("level {}", level);    
+    println!("level {}\n", level);    
     let path = format!("{}_{}_{}",path,base_log,level);
-    println!("key path {}", path);    
     
-    //println!("loading LWE sk 0... \n");
-    let sk0_LWE_path = format!("{}/sk0_LWE.json",path);
-    //let sk0 = LWESecretKey::load(&sk0_LWE_path).unwrap();    
-    let bsk00_path = format!("{}/bsk00_LWE.json",path);
-    //let bsk00 = LWEBSK::load(&bsk00_path);
+    
+    println!("loading data ...");
+    let now = Instant::now();
+    let encfile = format!("{}_{}_{}.enc",data_path,base_log,level);
+    println!("read {}",encfile);
+    let ct = VectorLWE::load(&encfile).unwrap();
+    let key_load_time = now.elapsed().as_millis();
+    println!("{} length {} ({} ms)\n", encfile, ct.nb_ciphertexts, key_load_time);
 
-    let encCGM = Encoder::new(0., 200., 3, 2).unwrap();
-    let enc100 = Encoder::new(0., 100., 3, 2).unwrap();
+    
+    println!("loading keys ... ");
+    let now = Instant::now();
+    let sk0_LWE_path = format!("{}/sk0_LWE.json",path);
+    let bsk00_path = format!("{}/bsk00_LWE.json",path);
+    let mut context = ConcreteContext{
+        bsk: LWEBSK::load(&bsk00_path),
+        sk: LWESecretKey::load(&sk0_LWE_path).unwrap()
+    };    
+    let key_load_time = now.elapsed().as_millis();
+    println!("{} ({} ms)\n", path, key_load_time);
+
+
+    println!("open file to log stats ... \n");    
+    let savefile = format!("{}_{}_{}_cgm.enc",data_path,base_log,level);
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open("calc_hourly_stats.txt")
+        .unwrap();    
+
+    
+    println!("calcuate averages ... ");
+    let encCGM = Encoder::new(0., 400., 3, 2).unwrap();
+    //let enc100 = Encoder::new(0., 100., 3, 2).unwrap();
     //let enc10 = Encoder::new(0., 10., 3, 2).unwrap();
     //let enc5 = Encoder::new(0., 5., 3, 2).unwrap();
     
-    let mut context = ConcreteContext{
-        bsk: LWEBSK::load(&bsk00_path),
-        sk: LWESecretKey::load(&sk0_LWE_path).unwrap()    
-    };    
+    let w = 12;
+    let n = 24*12;
+    let k = n/w;
+    
+    let mut cgm = VectorLWE::zero(1024, k).unwrap();
+    let mut tau: Vec<u128> = Vec::new();
+    
+    for i in 0..k {
+        let mut x: Vec<VectorLWE> = Vec::new();
+        println!("i: {}",i);
+        for j in 0..w {
+            x.push(ct.extract_nth(i*w+j).unwrap());
+        }
+        let now = Instant::now();
+        //let avg = ct.extract_nth(i).unwrap(); // for dummy run
+        let avg = context.weighted_mean_of_many(&x, &encCGM, id);
+        let step_time = now.elapsed().as_millis();
+        tau.push(step_time);
+        println!("window size {} took {} ms", w, step_time);
+        cgm.copy_in_nth_nth_inplace(i, &avg, 0).unwrap();
+        //println!("mean hourly CGM* {:?}", avg.decrypt_decode(&context.sk).unwrap());
+        //let avg = context.weighted_mean_of_many(&x, &encCGM, score_GVP);
+        //println!("mean hourly GVP* {:?}", avg.decrypt_decode(&context.sk).unwrap());
+        //let avg = context.weighted_mean_of_many(&x, &enc100, score_IR);
+        //println!("mean hourly TIR* {:?}", avg.decrypt_decode(&context.sk).unwrap());
+        let msg = format!("{} {}", savefile, step_time);
+        println!("{}", msg);
+        writeln!(file, "{}", msg).unwrap();    
+    }
+    println!("write cgm {}", savefile);
+    cgm.save(&savefile).unwrap();    
+
+    println!("average CGM* per bucket{:?}", cgm.decrypt_decode(&context.sk).unwrap());
+    println!("time consumed per bucket {:?}", tau);
 
     /*
-    2021-01-01 13:03:39,191.0
-    2021-01-01 13:08:39,186.0
-    2021-01-01 13:13:39,184.0
-    2021-01-01 13:18:39,183.0
-    2021-01-01 13:23:39,179.0
-    2021-01-01 13:28:39,177.0
-    2021-01-01 13:33:39,167.0
-    2021-01-01 13:38:39,163.0
-    2021-01-01 13:43:39,156.0
-    2021-01-01 13:48:39,153.0
-    2021-01-01 13:53:39,150.0
-    2021-01-01 13:58:39,157.0
-    */
-    // time in range 8/12 approx 67%
-
     // test mean_of_many
     
     let xv: Vec<f64> = vec![191.,186.,184.,183.,179.,177.,167.,163.,156.,153.,150.,157.];
@@ -137,7 +187,6 @@ fn main() -> Result<(), CryptoAPIError> {
     println!("cv[0]* {:?}", cv[0].decrypt_decode(&context.sk).unwrap());
     cv[0].pp(); 
         
-    /*
     let ir = context.bootmap(&cv, &score_IR, &enc100);
     println!("ir[0]* {:?}", ir[0].decrypt_decode(&context.sk).unwrap());
     ir[0].pp(); 
@@ -149,7 +198,6 @@ fn main() -> Result<(), CryptoAPIError> {
     let h54 = context.bootmap(&cv, &score_54, &enc100);
     println!("h54[0]* {:?}", h54[0].decrypt_decode(&context.sk).unwrap());
     h54[0].pp(); 
-    */
     
     let avg = context.weighted_mean_of_many(&cv, &encCGM, id);
     println!("mean hourly CGM* {:?}", avg.decrypt_decode(&context.sk).unwrap());
@@ -165,6 +213,7 @@ fn main() -> Result<(), CryptoAPIError> {
     let avg = context.weighted_mean_of_many(&cv, &enc100, score_IR);
     println!("mean hourly TIR* {:?}", avg.decrypt_decode(&context.sk).unwrap());
     avg.pp(); 
+    */
        
     Ok(())
 }
