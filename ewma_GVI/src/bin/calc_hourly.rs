@@ -90,58 +90,72 @@ fn score_GVP(dy: f64) -> f64 {
 //fn score_70(x: f64) -> f64 { if x < 70. {100.0} else {0.0} }
 //fn score_54(x: f64) -> f64 { if x < 54. {100.0} else {0.0} }
 
-fn main() -> Result<(), CryptoAPIError> {
+fn main() -> Result<(), CryptoAPIError> { // calc_hourly keys data
 
-    let data_path = "data/CGM_p77_24h";
-    let path = "keys/80_1024_1";
-    let mut base_log: usize = 6;
-    let mut level: usize = 4; 
+    let args: Vec<String> = env::args().collect();
+    if args.len() == 2 {
+        println!("format: calc_hourly keys data");
+        return Ok(());
+    }
     
     println!("\nsetting parameters ..."); 
-    let args: Vec<String> = env::args().collect();
+    let mut keys = "80_1024_1_6_4";
+    let mut data = "CGM_p77_24h_2_3_400";
     if args.len() == 3 {
-        base_log =  args[1].parse().unwrap();
-        level = args[2].parse().unwrap();
+        keys = &args[1];
+        data = &args[2];
     }
-    println!("base_log {}", base_log);
-    println!("level {}\n", level);    
-    let path = format!("{}_{}_{}",path,base_log,level);
+    println!("assume: calc_hourly {} {}", keys, data);
+
+    let sk0_LWE_path = format!("keys/{}/sk0_LWE.json",keys);
+    let bsk00_path = format!("keys/{}/bsk00_LWE.json",keys);
+    let datafile = format!("data/{}/{}.enc",keys,data);
+    let savefile = format!("data/{}/{}_cgm_hourly.enc",keys,data);
+    let log_file = format!("hourly_stats.txt");
     
+    
+    //let data_path = "data/CGM_p77_24h";
+    //let path = "keys/80_1024_1";
+    //let mut base_log: usize = 6;
+    //let mut level: usize = 4; 
+    
+    //let args: Vec<String> = env::args().collect();
+    //if args.len() == 3 {
+    //    base_log =  args[1].parse().unwrap();
+    //    level = args[2].parse().unwrap();
+    //}
+    //println!("base_log {}", base_log);
+    //println!("level {}\n", level);    
+    //let path = format!("{}_{}_{}",path,base_log,level);
     
     println!("loading data ...");
     let now = Instant::now();
-    let encfile = format!("{}_{}_{}.enc",data_path,base_log,level);
-    println!("read {}",encfile);
-    let ct = VectorLWE::load(&encfile).unwrap();
+    println!("read {}",datafile);
+    let ct = VectorLWE::load(&datafile).unwrap();
     let key_load_time = now.elapsed().as_millis();
-    println!("{} length {} ({} ms)\n", encfile, ct.nb_ciphertexts, key_load_time);
+    println!("{} length {} ({} ms)\n", datafile, ct.nb_ciphertexts, key_load_time);
 
     
     println!("loading keys ... ");
     let now = Instant::now();
-    let sk0_LWE_path = format!("{}/sk0_LWE.json",path);
-    let bsk00_path = format!("{}/bsk00_LWE.json",path);
     let mut context = ConcreteContext{
         bsk: LWEBSK::load(&bsk00_path),
         sk: LWESecretKey::load(&sk0_LWE_path).unwrap()
     };    
     let key_load_time = now.elapsed().as_millis();
-    println!("{} ({} ms)\n", path, key_load_time);
+    println!("{} ({} ms)\n", keys, key_load_time);
 
 
     println!("open file to log stats ... \n");    
-    let savefile = format!("{}_{}_{}_cgm.enc",data_path,base_log,level);
     let mut file = OpenOptions::new()
         .append(true)
-        .open("calc_hourly_stats.txt")
+        .open(log_file)
         .unwrap();    
 
     
     println!("calcuate averages ... ");
-    let encCGM = Encoder::new(0., 400., 3, 2).unwrap();
+    let encCGM = ct.encoders[0].clone();
     //let enc100 = Encoder::new(0., 100., 3, 2).unwrap();
-    //let enc10 = Encoder::new(0., 10., 3, 2).unwrap();
-    //let enc5 = Encoder::new(0., 5., 3, 2).unwrap();
     
     let w = 12;
     let n = 24*12;
@@ -172,48 +186,12 @@ fn main() -> Result<(), CryptoAPIError> {
         println!("{}", msg);
         writeln!(file, "{}", msg).unwrap();    
     }
+    
     println!("write cgm {}", savefile);
     cgm.save(&savefile).unwrap();    
 
     println!("average CGM* per bucket{:?}", cgm.decrypt_decode(&context.sk).unwrap());
     println!("time consumed per bucket {:?}", tau);
-
-    /*
-    // test mean_of_many
-    
-    let xv: Vec<f64> = vec![191.,186.,184.,183.,179.,177.,167.,163.,156.,153.,150.,157.];
-
-    let cv = context.encrypt(&xv, &encCGM);
-    println!("cv[0]* {:?}", cv[0].decrypt_decode(&context.sk).unwrap());
-    cv[0].pp(); 
-        
-    let ir = context.bootmap(&cv, &score_IR, &enc100);
-    println!("ir[0]* {:?}", ir[0].decrypt_decode(&context.sk).unwrap());
-    ir[0].pp(); 
-
-    let h70 = context.bootmap(&cv, &score_70, &enc100);
-    println!("h70[0]* {:?}", h70[0].decrypt_decode(&context.sk).unwrap());
-    h70[0].pp(); 
-
-    let h54 = context.bootmap(&cv, &score_54, &enc100);
-    println!("h54[0]* {:?}", h54[0].decrypt_decode(&context.sk).unwrap());
-    h54[0].pp(); 
-    
-    let avg = context.weighted_mean_of_many(&cv, &encCGM, id);
-    println!("mean hourly CGM* {:?}", avg.decrypt_decode(&context.sk).unwrap());
-    avg.pp(); 
-    
-    let tst = xv.iter().sum::<f64>() / xv.len() as f64;
-    println!("check value: {}",tst);
-
-    let avg = context.weighted_mean_of_many(&cv, &encCGM, score_GVP);
-    println!("mean hourly GVP* {:?}", avg.decrypt_decode(&context.sk).unwrap());
-    avg.pp(); 
-
-    let avg = context.weighted_mean_of_many(&cv, &enc100, score_IR);
-    println!("mean hourly TIR* {:?}", avg.decrypt_decode(&context.sk).unwrap());
-    avg.pp(); 
-    */
        
     Ok(())
 }
