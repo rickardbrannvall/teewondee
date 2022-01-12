@@ -17,6 +17,7 @@ fn main() -> Result<(), CryptoAPIError> { // encode_data keys data padd prec hig
     let args: Vec<String> = env::args().collect();
     if args.len() == 2 {
         println!("format: encode keys data padd prec high");
+        println!("example encode 80_1024_1_5_3 CGM_p77_24h 2 3 400");
         return Ok(());
     }
     

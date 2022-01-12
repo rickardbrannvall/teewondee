@@ -95,6 +95,7 @@ fn main() -> Result<(), CryptoAPIError> { // calc_hourly keys data
     let args: Vec<String> = env::args().collect();
     if args.len() == 2 {
         println!("format: calc_hourly keys data");
+        println!("example calc_hourly 80_1024_1_6_4 CGM_p77_24h_2_3_400");
         return Ok(());
     }
     
@@ -110,23 +111,9 @@ fn main() -> Result<(), CryptoAPIError> { // calc_hourly keys data
     let sk0_LWE_path = format!("keys/{}/sk0_LWE.json",keys);
     let bsk00_path = format!("keys/{}/bsk00_LWE.json",keys);
     let datafile = format!("data/{}/{}.enc",keys,data);
-    let savefile = format!("data/{}/{}_cgm_hourly.enc",keys,data);
+    let savefile = format!("data/{}/{}_CGM_hourly.enc",keys,data);
     let log_file = format!("hourly_stats.txt");
     
-    
-    //let data_path = "data/CGM_p77_24h";
-    //let path = "keys/80_1024_1";
-    //let mut base_log: usize = 6;
-    //let mut level: usize = 4; 
-    
-    //let args: Vec<String> = env::args().collect();
-    //if args.len() == 3 {
-    //    base_log =  args[1].parse().unwrap();
-    //    level = args[2].parse().unwrap();
-    //}
-    //println!("base_log {}", base_log);
-    //println!("level {}\n", level);    
-    //let path = format!("{}_{}_{}",path,base_log,level);
     
     println!("loading data ...");
     let now = Instant::now();

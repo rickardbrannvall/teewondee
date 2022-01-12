@@ -103,7 +103,8 @@ fn main() -> Result<(), CryptoAPIError> { //calc_rolling keys data window
 
     let args: Vec<String> = env::args().collect();
     if args.len() == 2 {
-        println!("format: calc_hourly keys data");
+        println!("format: calc_hourly keys data widow");
+        println!("example calc_hourly 80_1024_1_6_4 CGM_p77_24h_2_3_400 8");
         return Ok(());
     }
     
@@ -124,29 +125,9 @@ fn main() -> Result<(), CryptoAPIError> { //calc_rolling keys data window
     let savefile = format!("data/{}/{}_rolling_{}.enc",keys,data,window);
     let log_file = format!("rolling_stats.txt");
     
-    /*
-    let data_path = "data/CGM_p77_24h";
-    let path = "keys/80_1024_1";
-    let mut base_log: usize = 6;
-    let mut level: usize = 4; 
-    
-    println!("\nsetting parameters ..."); 
-    let args: Vec<String> = env::args().collect();
-    if args.len() == 3 {
-        base_log =  args[1].parse().unwrap();
-        level = args[2].parse().unwrap();
-    }
-    println!("base_log {}", base_log);
-    println!("level {}", level);    
-    let path = format!("{}_{}_{}",path,base_log,level);
-    */
     
     println!("\nloading keys and data ... ");
     println!("keys: {}",keys);
-    //let sk0_LWE_path = format!("keys/{}/sk0_LWE.json",keys);
-    //let bsk00_path = format!("keys/{}/bsk00_LWE.json",keys);
-    //let encfile = format!("data/{}/{}.enc",keys,data);
-    //let encfile = format!("{}_{}_{}.enc",data_path,base_log,level);
     println!("data: {}",data);
     println!("logs: {}",log_file);
     let now = Instant::now();
