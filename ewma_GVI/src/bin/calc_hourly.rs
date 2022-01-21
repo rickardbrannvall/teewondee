@@ -6,7 +6,6 @@ use std::time::{Instant}; // Duration,
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 
-
 pub struct ConcreteContext {
     bsk: LWEBSK,
     sk: LWESecretKey
@@ -145,8 +144,9 @@ fn main() -> Result<(), CryptoAPIError> { // calc_hourly keys data
     //let enc100 = Encoder::new(0., 100., 3, 2).unwrap();
     
     let w = 12;
-    let n = 24*12;
-    let k = n/w;
+    //let n = 24*12;
+    let n = ct.nb_ciphertexts;
+    let k = (n+w/2)/w;
     
     let mut cgm = VectorLWE::zero(1024, k).unwrap();
     let mut tau: Vec<u128> = Vec::new();
@@ -155,7 +155,11 @@ fn main() -> Result<(), CryptoAPIError> { // calc_hourly keys data
         let mut x: Vec<VectorLWE> = Vec::new();
         println!("i: {}",i);
         for j in 0..w {
-            x.push(ct.extract_nth(i*w+j).unwrap());
+            let m = i*w+j;
+            if m >= n {
+                break;
+            }
+            x.push(ct.extract_nth(m).unwrap());
         }
         let now = Instant::now();
         //let avg = ct.extract_nth(i).unwrap(); // for dummy run

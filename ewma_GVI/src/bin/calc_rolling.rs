@@ -29,7 +29,7 @@ impl RollingContext {
     // bootstrap to restore padding and rescale is carried out padding reaches 1
     // note that bootstrap is optional at top level (as it may be effecient to defer)
     
-    pub fn partial_mean_recursion(&mut self, iv: &[usize], l: i32, enc: &Encoder) -> (f64, VectorLWE) {
+    pub fn partial_mean_recursion(&mut self, iv: &[usize], l: i32, enc: &Encoder, f: i32) -> (f64, VectorLWE) {
         // iv is list of indices for which to find average
         // l: is level parameter for l>0 rescales all levels, otherwise manual rescale of final 
         // enc: is target encoding (from original VectorLWE ciphertext)
@@ -50,13 +50,13 @@ impl RollingContext {
             return (1.0, val.clone());
         }
         assert!(n-m==m);
-        let (ss, rr) = self.partial_mean_recursion(&iv[..m], l+1, &enc);
-        let (_s, _r) = self.partial_mean_recursion(&iv[m..], l+1, &enc);
+        let (ss, rr) = self.partial_mean_recursion(&iv[..m], l+1, &enc, 0);
+        let (_s, _r) = self.partial_mean_recursion(&iv[m..], l+1, &enc, 0);
         assert!(rr.encoders[0].nb_bit_padding==_r.encoders[0].nb_bit_padding);
         let mut s = 0.5*ss;
         let mut rs = rr.add_with_padding(&_r).unwrap();
         let p = rs.encoders[0].nb_bit_padding;
-        if p == 1 && l > 0 { // bootstrap partial mean
+        if (p == 1 && l > 0) || f == 1 { // bootstrap partial mean
             //println!("n, m, p, s: {}, {}, {}, {} - bootstrap to restore padding and scale", n, m, p, s);
             rs = rs.bootstrap_nth_with_function(&self.bsk, |x| s*x, &enc, 0).unwrap();
             s = 1.0; 
@@ -67,7 +67,7 @@ impl RollingContext {
         return (s, rs);
     }
     
-    pub fn rolling_mean_of_2toN(&mut self, w: usize, l: i32) -> (f64, VectorLWE) {
+    pub fn rolling_mean_of_2toN(&mut self, w: usize, l: i32, f: i32) -> (f64, VectorLWE) {
         // w: size of rolling window which must be 2^N
         // l: is level parameter for l>0 rescales all levels, otherwise manual rescale of final 
         //
@@ -86,7 +86,7 @@ impl RollingContext {
             let c = i - m*base;
             let mut v = (i..(i+w)).map(|i| iv[i]).collect::<Vec<_>>();
             v.rotate_right(c);
-            let (s, r) = self.partial_mean_recursion(&v, l, &enc);
+            let (s, r) = self.partial_mean_recursion(&v, l, &enc, f);
             rv.copy_in_nth_nth_inplace(i, &r, 0).unwrap();
             let step_time = now.elapsed().as_millis();
             scale = s;
@@ -147,7 +147,7 @@ fn main() -> Result<(), CryptoAPIError> { //calc_rolling keys data window
     
     println!("\ncalculate rolling average ... ");
     let w = 8;
-    let (_s, avg) = context.rolling_mean_of_2toN(w,1);
+    let (_s, avg) = context.rolling_mean_of_2toN(w,1,1); // f=1 to force top level
     println!("avg: {:?}", avg.decrypt_decode(&context.sk).unwrap());
     
     println!("\nsave result in file {}", savefile);
