@@ -146,8 +146,8 @@ fn main() -> Result<(), CryptoAPIError> { //calc_rolling keys data window
     println!("load keys and data (size {}) took {} ms\n", context.xv.nb_ciphertexts, load_time);
     
     println!("\ncalculate rolling average ... ");
-    let w = 8;
-    let (_s, avg) = context.rolling_mean_of_2toN(w,1,1); // f=1 to force top level
+    //let w = 8;
+    let (_s, avg) = context.rolling_mean_of_2toN(window,1,1); // f=1 to force top level
     println!("avg: {:?}", avg.decrypt_decode(&context.sk).unwrap());
     
     println!("\nsave result in file {}", savefile);
