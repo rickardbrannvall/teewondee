@@ -8,4 +8,3 @@ edition = "2021"
 [dependencies]
 concrete="^0.1"
 indicatif = "0.16.2"
-TFHE_concurrency = { git = "https://github.com/henrikfo/TFHE_concurrency" }
