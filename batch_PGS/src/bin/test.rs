@@ -264,7 +264,6 @@ fn calculate_accuracy() -> (Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec
     let base_log = 6;
     let lvl = 6;
 
-    let mut data = vec![48., 50., 51., 56.];
 
     let mut E_gvp = vec![];
     let mut E_mg = vec![];
@@ -273,6 +272,9 @@ fn calculate_accuracy() -> (Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec
 
 
     for (dim, precision) in rlwe_dim.iter().zip(prec.iter()){
+
+
+        let mut data = vec![48., 50., 51., 56.];
 
         let mut err_gvp = vec![];
         let mut err_mg = vec![];
@@ -292,8 +294,7 @@ fn calculate_accuracy() -> (Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec
 
         println!("{}", *dim);
 
-        for i in 0..10{
-            println!("{}", i);
+        for i in 0..100{
 
             
 
@@ -329,19 +330,21 @@ fn calculate_accuracy() -> (Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec
             let p_ptir = plain_ptir( data.clone() );
             let p_hypo = plain_hypo( data.clone() );
 
-            data = data.into_iter().map(|x| x + 10.).collect();
 
             err_gvp.push( p_gvp - gvp[0].decrypt_decode(&sk_out).unwrap() );
-            err_mg.push( p_mg - gvp[0].decrypt_decode(&sk_out).unwrap() );
-            err_ptir.push( p_ptir - gvp[0].decrypt_decode(&sk_out).unwrap() );
-            err_hypo.push( p_hypo - gvp[0].decrypt_decode(&sk_out).unwrap() );
+            err_mg.push( p_mg - mg[0].decrypt_decode(&sk_out).unwrap() );
+            err_ptir.push( p_ptir - ptir[0].decrypt_decode(&sk_out).unwrap() );
+            err_hypo.push( p_hypo - hyp[0].decrypt_decode(&sk_out).unwrap() );
 
-            /*
+           /* 
             println!("GVP: plain = {}, enc = {}", plain_gvp( data.clone() ), gvp[0].decrypt_decode(&sk_out).unwrap()  );
             println!("MG: plain = {}, enc = {}", plain_mean( data.clone() ), mg[0].decrypt_decode(&sk_out).unwrap() );
             println!("TIR: plain = {}, enc = {}", plain_ptir( data.clone() ), ptir[0].decrypt_decode(&sk_out).unwrap() );
             println!("HG: plain = {}, enc = {}", plain_hypo( data.clone() ), hyp[0].decrypt_decode(&sk_out).unwrap() );
             */
+            
+            data = data.into_iter().map(|x| x + 2.).collect();
+            println!("{}: {:?}", i, data);
         }
 
     E_gvp.push( err_gvp );
@@ -365,14 +368,14 @@ fn mean_std(x: Vec<Vec<f64>>) -> (Vec<f64>, Vec<f64>) {
 
     for i in 0..len_0{
 
-        let mean = x[i].iter().sum::<f64>();
+        let mean = x[i].iter().sum::<f64>() / (len_1 as f64);
         let mut std = 0.;
 
         for j in 0..len_1{
-            std += (x[i][j] - mean).powf(2.);
+            std += (x[i][j] - mean).powf(2.) / (len_1 as f64);
         }
 
-        means.push( mean );
+        means.push( x[i].iter().map(|x| f64::abs(*x)).sum::<f64>() );
         stds.push( std.powf(0.5) );
     }
     
