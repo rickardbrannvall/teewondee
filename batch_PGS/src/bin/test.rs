@@ -20,7 +20,7 @@ fn write_res(func: Vec<&str>, key: Vec<usize>, mean: Vec<Vec<f64>>, std: Vec<Vec
 
     let line4 = format!("\n{}, {} \u{00b1} {}, {} \u{00b1} {}, {} \u{00b1} {}", func[3], mean[3][0], std[3][0], mean[3][1], std[3][1], mean[3][2], std[3][2]);
 
-    let contents = vec![headline, line1, line2];
+    let contents = vec![headline, line1, line2, line3, line4];
 
     println!("{:?}", &contents);
 
@@ -279,20 +279,22 @@ fn calculate_accuracy() -> (Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec<f64>>, Vec<Vec
         let mut err_ptir = vec![];
         let mut err_hypo = vec![];
 
-        for _ in 0..2{
+        let lwe_params: LWEParams = LWEParams::new(lwe_dim, lwe_noise);
+        let rlwe_params: RLWEParams = RLWEParams{polynomial_size: *dim, dimension: 1, log2_std_dev: rlwe_noise};
+        
 
-            let lwe_params: LWEParams = LWEParams::new(lwe_dim, lwe_noise);
-            let rlwe_params: RLWEParams = RLWEParams{polynomial_size: *dim, dimension: 1, log2_std_dev: rlwe_noise};
-            
+        let sk = LWESecretKey::new(&lwe_params);
+        let sk_rlwe = RLWESecretKey::new(&rlwe_params);
+        let sk_out = sk_rlwe.to_lwe_secret_key();
+        
+        let ksk = LWEKSK::new(&sk_out, &sk, base_log, lvl);
+        let bsk = LWEBSK::new(&sk, &sk_rlwe, base_log, lvl);
 
-            let sk = LWESecretKey::new(&lwe_params);
-            let sk_rlwe = RLWESecretKey::new(&rlwe_params);
-            let sk_out = sk_rlwe.to_lwe_secret_key();
-            
-            let ksk = LWEKSK::new(&sk_out, &sk, base_log, lvl);
-            let bsk = LWEBSK::new(&sk, &sk_rlwe, base_log, lvl);
+        println!("{}", *dim);
 
-            println!("{}", *dim);
+        for i in 0..10{
+            println!("{}", i);
+
             
 
             /*
