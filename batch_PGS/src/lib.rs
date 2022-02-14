@@ -96,7 +96,7 @@ fn sum_N(x: &VectorLWE) -> VectorLWE{//,n: &usize, sk: &LWESecretKey) -> VectorL
     return y;    
 }
 
-fn in_range(x: f64, upper: f64, lower: f64) -> f64{
+pub fn in_range(x: f64, upper: f64, lower: f64) -> f64{
     if x < upper && x > lower{
         1.
     }else{
@@ -104,23 +104,23 @@ fn in_range(x: f64, upper: f64, lower: f64) -> f64{
     }
 }
 
-fn calc_l(x: f64) -> f64{
+pub fn calc_l(x: f64) -> f64{
     f64::min(f64::sqrt(x.powf(2.0) + 25.), 32.)
 }
 
-fn F_GVP(x: f64) -> f64{
+pub fn F_GVP(x: f64) -> f64{
     1.+9./(1.+f64::exp(-0.049*(x-65.47)) )
 }
 
-fn F_MG(x: f64) -> f64{
+pub fn F_MG(x: f64) -> f64{
     1.+9./(1.+f64::exp(0.1139*(x-72.08)) )+9./(1.+f64::exp(-0.09195*(x-157.57)) )
 }
 
-fn F_PTIR(x: f64) -> f64{
+pub fn F_PTIR(x: f64) -> f64{
     1.+9./(1.+f64::exp(0.0833*(x-55.04)))
 }
 
-fn F_H70(x: f64) -> f64{
+pub fn F_H70(x: f64) -> f64{
     if x <= 7.65 {
         0.5714*x + 0.625
     }else{
@@ -128,7 +128,7 @@ fn F_H70(x: f64) -> f64{
     }
 }
 
-fn F_H54(x: f64) -> f64{
+pub fn F_H54(x: f64) -> f64{
     0.5+4.5*(1.-f64::exp(-0.81093*x))
 }
 
