@@ -409,6 +409,7 @@ fn main() -> (){
     let functions = vec!["Glycemic Variability", "Mean Glucose", "Positive TIR", "Hypo Glycemic"];
 
     write_res(functions, vec![1024, 2048, 4096], means, stds);
+    
 }
 
 
