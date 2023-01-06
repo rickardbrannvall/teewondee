@@ -106,6 +106,13 @@ fn main() -> Result<(), CryptoAPIError> { // calc_hourly keys data
         data = &args[2];
     }
     println!("assume: calc_hourly {} {}", keys, data);
+    
+    let mut keysize = 1024;
+    if keys.contains("2048") {
+        keysize = 2048;
+    }
+    println!("key size: {}", keysize);
+    
 
     let sk0_LWE_path = format!("keys/{}/sk0_LWE.json",keys);
     let bsk00_path = format!("keys/{}/bsk00_LWE.json",keys);
@@ -148,7 +155,7 @@ fn main() -> Result<(), CryptoAPIError> { // calc_hourly keys data
     let n = ct.nb_ciphertexts;
     let k = (n+w/2)/w;
     
-    let mut cgm = VectorLWE::zero(1024, k).unwrap();
+    let mut cgm = VectorLWE::zero(keysize, k).unwrap();
     let mut tau: Vec<u128> = Vec::new();
     
     for i in 0..k {
